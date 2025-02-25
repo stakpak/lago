@@ -113,7 +113,7 @@ resource "aws_instance" "lago" {
   }
 
   root_block_device {
-    volume_size = 50
+    volume_size = 200
     volume_type = "gp3"
   }
 }
@@ -175,7 +175,6 @@ resource "aws_iam_policy_attachment" "lago_user_policy" {
 resource "aws_iam_access_key" "lago_access_key" {
   user = aws_iam_user.lago_user.name
 }
-
 
 output "LAGO_AWS_S3_ACCESS_KEY_ID" {
   value = aws_iam_access_key.lago_access_key.id
