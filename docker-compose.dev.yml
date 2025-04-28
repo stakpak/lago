@@ -72,6 +72,7 @@ services:
       - APP_DOMAIN=https://app.lago.dev
       - CODEGEN_API=http://api:3000/graphql
       - LAGO_DISABLE_SIGNUP=${LAGO_DISABLE_SIGNUP:-}
+      - LAGO_DISABLE_PDF_GENERATION=${LAGO_DISABLE_PDF_GENERATION:-false}
       - NANGO_SECRET_KEY=${NANGO_SECRET_KEY:-}
     labels:
       - "traefik.enable=true"
@@ -96,6 +97,8 @@ services:
       - path: ./.env.development.default
       - path: ./.env.development
         required: false
+    stdin_open: true
+    tty: true
     environment:
       - DATABASE_TEST_URL=postgresql://${POSTGRES_USER:-lago}:${POSTGRES_PASSWORD:-changeme}@db:5432/lago_test
       - GOOGLE_AUTH_CLIENT_ID=${GOOGLE_AUTH_CLIENT_ID:-}
@@ -128,6 +131,8 @@ services:
       - path: ./.env.development.default
       - path: ./.env.development
         required: false
+    stdin_open: true
+    tty: true
 
   api-events-worker:
     <<: *api_worker
@@ -170,6 +175,29 @@ services:
       - path: ./.env.development.default
       - path: ./.env.development
         required: false
+
+  api-events-consumer:
+    <<: *api_worker
+    container_name: lago_api_events_consumer_dev
+    command: bash -c "bundle install && ./scripts/start.events.consumer.sh"
+
+  events-processor:
+    image: events-processor_dev
+    container_name: lago_events-processor
+    restart: unless-stopped
+    build:
+      context: ./events-processor
+      dockerfile: $LAGO_PATH/events-processor/Dockerfile.dev
+    depends_on:
+      - db
+      - redpanda
+      - redis
+    env_file:
+      - path: ./.env.development.default
+      - path: ./.env.development
+        required: false
+    volumes:
+      - $LAGO_PATH/events-processor:/app:delegated
 
   pdf:
     image: getlago/lago-gotenberg:7
@@ -219,7 +247,7 @@ services:
     depends_on:
       - redpanda
     entrypoint: >
-      rpk topic create events-raw --brokers redpanda:9092
+      rpk topic create events-raw events_enriched events_charged_in_advance events_dead_letter --brokers redpanda:9092
 
   redpanda-console:
     image: docker.redpanda.com/redpandadata/console:v2.3.1
