@@ -8,9 +8,9 @@ x-postgres-image: &postgres-image
 x-redis-image: &redis-image
   image: redis:6-alpine
 x-backend-image: &backend-image
-  image: getlago/api:v1.26.0
+  image: getlago/api:v1.31.0
 x-frontend-image: &frontend-image
-  image: getlago/front:v1.26.0
+  image: getlago/front:v1.31.0
 
 x-lago-api-url: &lago-api-url
   "LAGO_API_URL": ${LAGO_API_URL:-http://localhost:3000}
@@ -103,7 +103,7 @@ services:
     container_name: lago-redis
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-p", "${REDIS_PORT:-6379}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -271,6 +271,18 @@ services:
   #    api:
   #      condition: service_healthy
   #  command: ["./scripts/start.webhook.worker.sh"]
+  #  environment:
+  #    <<: [*backend-env, *lago-api-url]
+
+  # You can uncomment this if you want to use a dedicated Sidekiq worker for the analytics-related jobs.
+  #api-analytics-worker:
+  #  <<: *backend-image
+  #  container_name: api-analytics-worker
+  #  restart: unless-stopped
+  #  depends_on:
+  #    api:
+  #      condition: service_healthy
+  #  command: ["./scripts/start.analytics.worker.sh"]
   #  environment:
   #    <<: [*backend-env, *lago-api-url]
 

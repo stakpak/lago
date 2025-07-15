@@ -159,6 +159,11 @@ services:
     container_name: lago_api_webhook_worker_dev
     command: bash -c "bundle install && ./scripts/start.webhook.worker.sh"
 
+  api-analytics-worker:
+    <<: *api_worker
+    container_name: lago_api_analytics_worker_dev
+    command: bash -c "bundle install && ./scripts/start.analytics.worker.sh"
+
   api-clock:
     image: api_dev
     container_name: lago_api_clock_dev
@@ -200,7 +205,7 @@ services:
       - $LAGO_PATH/events-processor:/app:delegated
 
   pdf:
-    image: getlago/lago-gotenberg:7
+    image: getlago/lago-gotenberg:7.8.2
     container_name: lago_pdf_dev
     restart: unless-stopped
     command:
@@ -247,7 +252,7 @@ services:
     depends_on:
       - redpanda
     entrypoint: >
-      rpk topic create events-raw events_enriched events_charged_in_advance events_dead_letter --brokers redpanda:9092
+      rpk topic create events-raw events_enriched events_charged_in_advance events_dead_letter activity_logs api_logs --brokers redpanda:9092
 
   redpanda-console:
     image: docker.redpanda.com/redpandadata/console:v2.3.1
@@ -306,3 +311,16 @@ services:
       - $LAGO_PATH/api:/app:delegated
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-lago}:${POSTGRES_PASSWORD:-changeme}@db:5432/${POSTGRES_DB:-lago}
+  webhook:
+    image: ghcr.io/tarampampam/webhook-tester:2
+    container_name: lago_webhook_dev
+    restart: unless-stopped
+    environment:
+      - HTTP_PORT=80
+      - AUTO_CREATE_SESSIONS=true
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.webhook.rule=Host(`webhook.lago.dev`)"
+      - "traefik.http.routers.webhook.entrypoints=web,ws,websecure"
+      - "traefik.http.routers.webhook.tls=true"
+      - "traefik.http.services.webhook.loadbalancer.server.port=80"
